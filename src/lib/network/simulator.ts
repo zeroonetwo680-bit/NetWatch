@@ -4,7 +4,7 @@ import type {
   NetworkAdapter,
   RouterDeviceSnapshot,
 } from "./types";
-import { AdapterError } from "./types";
+import { AdapterError, FULL_CAPABILITIES } from "./types";
 import { normalizeMac } from "@/lib/usage/calculator";
 
 /**
@@ -180,6 +180,7 @@ export class SimulatedNetwork implements NetworkAdapter {
     return {
       mode: this.mode,
       connected: true,
+      capabilities: FULL_CAPABILITIES,
       lastPollAt: this.lastPollAt,
       lastError: null,
       deviceCount: this.lastDeviceCount || this.devices.length,

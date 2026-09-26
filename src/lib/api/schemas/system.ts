@@ -1,6 +1,19 @@
 import { z } from "zod";
 
-export const networkModeSchema = z.enum(["simulated", "mikrotik"]);
+export const networkModeSchema = z.enum(["simulated", "mikrotik", "lan"]);
+
+export const adapterCapabilitiesSchema = z.object({
+  perDeviceTraffic: z.boolean(),
+  totalTraffic: z.boolean(),
+  speedLimit: z.boolean(),
+  blocking: z.boolean(),
+  note: z.string().nullable(),
+});
+
+export const totalThroughputSchema = z.object({
+  downloadMbps: z.number().nullable(),
+  uploadMbps: z.number().nullable(),
+});
 
 export const systemStatusSchema = z.object({
   networkMode: networkModeSchema,
@@ -9,6 +22,8 @@ export const systemStatusSchema = z.object({
   lastError: z.string().nullable(),
   pollIntervalMs: z.number(),
   sampleCount: z.number(),
+  capabilities: adapterCapabilitiesSchema,
+  totalThroughput: totalThroughputSchema.nullable(),
 });
 
 export const settingsSchema = z.object({

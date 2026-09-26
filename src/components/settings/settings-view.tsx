@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  Info,
   Loader2,
   Router,
   ServerCog,
@@ -68,7 +69,11 @@ function SystemStatusCard() {
             <Skeleton className="h-5 w-24" />
           ) : (
             <Badge variant={data?.networkMode === "simulated" ? "secondary" : "default"}>
-              {data?.networkMode === "simulated" ? "محاكاة" : "MikroTik"}
+              {data?.networkMode === "simulated"
+                ? "محاكاة"
+                : data?.networkMode === "lan"
+                  ? "اكتشاف الشبكة (LAN)"
+                  : "MikroTik"}
             </Badge>
           )}
         </Row>
@@ -106,7 +111,18 @@ function SystemStatusCard() {
             <AlertTitle>أنت في وضع المحاكاة</AlertTitle>
             <AlertDescription>
               البيانات قادمة من شبكة افتراضية داخل التطبيق — لا يتم التحكم في راوتر
-              حقيقي. غيّر <Mono>NETWORK_MODE=mikrotik</Mono> للاتصال بالراوتر.
+              حقيقي. غيّر <Mono>NETWORK_MODE=mikrotik</Mono> أو <Mono>NETWORK_MODE=lan</Mono> للاتصال بالشبكة.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      ) : null}
+      {data?.networkMode === "lan" ? (
+        <CardContent>
+          <Alert className="border-info/40 bg-info/10">
+            <Info className="size-4 text-info" aria-hidden />
+            <AlertTitle>وضع اكتشاف الشبكة المحلية (LAN Discovery)</AlertTitle>
+            <AlertDescription>
+              يتم اكتشاف الأجهزة المتصلة الحقيقية عبر جدول ARP وPing. راوترات المنازل العادية لا تدعم إحصاءات استهلاك كل جهاز أو تحديد السرعة والحظر برمجياً — هذه المزايا تتطلب راوتر MikroTik.
             </AlertDescription>
           </Alert>
         </CardContent>

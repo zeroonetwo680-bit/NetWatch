@@ -94,7 +94,9 @@ export function upsertDiscoveredDevices(
     } else {
       db.insert(devices)
         .values({
-          name: snapshot.hostname ?? `جهاز ${mac.slice(-5)}`,
+          name:
+            snapshot.hostname ??
+            (snapshot.vendor ? `${snapshot.vendor} ${mac.slice(-5)}` : `جهاز ${mac.slice(-5)}`),
           macAddress: mac,
           ipAddress: snapshot.ip,
           hostname: snapshot.hostname,
@@ -135,6 +137,11 @@ function computeDeltas(
 
   for (const snapshot of snapshots) {
     const mac = normalizeMac(snapshot.mac);
+
+    // The LAN adapter sees the device but not its traffic: recording a
+    // delta here would write fake zeroes into the usage tables.
+    if (snapshot.metricsAvailable === false) continue;
+
     const previous = counters.get(mac);
 
     let downloadBytes = 0;

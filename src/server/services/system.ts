@@ -5,7 +5,12 @@ import { getDb } from "@/db";
 import { settings, trafficSamples } from "@/db/schema";
 import { appConfig } from "@/lib/config";
 import { getNetworkAdapter } from "@/lib/network";
-import type { MikrotikConnectionConfig } from "@/lib/network/types";
+import type {
+  AdapterCapabilities,
+  MikrotikConnectionConfig,
+  NetworkMode,
+  TotalThroughput,
+} from "@/lib/network/types";
 import { ApiError } from "../errors";
 
 export type RuntimeSettings = {
@@ -167,15 +172,19 @@ export function getLastPoll(): { at: string | null; error: string | null } {
 }
 
 export type SystemStatus = {
-  networkMode: "simulated" | "mikrotik";
+  networkMode: NetworkMode;
   routerConnected: boolean;
   lastPollAt: string | null;
   lastError: string | null;
   pollIntervalMs: number;
   sampleCount: number;
+  /** What the active data source can actually do (drives UI affordances). */
+  capabilities: AdapterCapabilities;
+  /** Network-wide WAN throughput when the source can measure it. */
+  totalThroughput: TotalThroughput | null;
 };
 
-export function getSystemStatus(): SystemStatus {
+export async function getSystemStatus(): Promise<SystemStatus> {
   const adapter = getNetworkAdapter();
   const status = adapter.status();
   const runtime = getRuntimeSettings();
@@ -187,6 +196,8 @@ export function getSystemStatus(): SystemStatus {
       .from(trafficSamples)
       .get()?.count ?? 0;
 
+  const totalThroughput = await adapter.totalThroughput?.();
+
   return {
     networkMode: status.mode,
     routerConnected: status.connected,
@@ -194,6 +205,8 @@ export function getSystemStatus(): SystemStatus {
     lastError: lastPoll.error ?? status.lastError,
     pollIntervalMs: runtime.pollIntervalMs,
     sampleCount,
+    capabilities: status.capabilities,
+    totalThroughput: totalThroughput ?? null,
   };
 }
 

@@ -16,6 +16,7 @@ import {
 import type { DeviceDto, DeviceFilter } from "@/lib/api/schemas/device";
 import type { PageResult } from "@/lib/api/schemas/common";
 import { ApiError } from "../errors";
+import { requireCapability } from "../capabilities";
 import { canAccessDevice, type SessionUser } from "../auth";
 
 export type DeviceRow = typeof devices.$inferSelect;
@@ -332,6 +333,7 @@ export async function setDeviceBlocked(
   }
   const device = getDeviceRow(session, id);
   const adapter = getNetworkAdapter();
+  requireCapability("blocking", "حظر الأجهزة");
 
   try {
     await adapter.setBlocked(device.macAddress, blocked);

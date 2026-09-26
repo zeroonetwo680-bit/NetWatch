@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Download, HardDrive } from "lucide-react";
+import { Download, HardDrive, Info } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -24,6 +25,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { useSession } from "@/lib/api/modules/auth/hooks";
 import { useUsageReport } from "@/lib/api/modules/usage/hooks";
+import { useCapabilities } from "@/lib/api/modules/system/hooks";
 import { formatBytes } from "@/lib/format";
 
 const UsageBarChart = dynamic(
@@ -47,6 +49,7 @@ export function UsageView() {
   const [granularity, setGranularity] = useState<"daily" | "monthly">("daily");
   const [days, setDays] = useState(30);
   const { from, to } = useMemo(() => range(days), [days]);
+  const capabilities = useCapabilities();
 
   const report = useUsageReport(granularity, from, to);
 
@@ -106,6 +109,16 @@ export function UsageView() {
           </Button>
         }
       />
+
+      {!capabilities.perDeviceTraffic ? (
+        <Alert className="border-info/30 bg-info/5">
+          <Info className="size-4 text-info" aria-hidden />
+          <AlertTitle>تقارير الاستهلاك غير متاحة على هذا الراوتر</AlertTitle>
+          <AlertDescription>
+            تقارير الاستهلاك التراكمية اليومية والشهرية لكل جهاز تتطلب راوتر MikroTik يجمع بيانات الحزم.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Tabs

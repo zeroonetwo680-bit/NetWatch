@@ -842,6 +842,12 @@ actual toolchain, all of them backwards-compatible with the spec:
 7. Tests stub the bundler-only `server-only` package (see `vitest.config.ts`),
    and DB tests set `DATABASE_PATH` **before** importing modules because
    `src/lib/config.ts` parses `process.env` at import time.
+8. **LAN Discovery mode** (`NETWORK_MODE=lan`): discovers live network devices
+   using the OS ARP table, ping sweeps, reverse DNS, and UPnP IGD without
+   requiring a MikroTik router. Because standard home gateways (Huawei, TP-Link,
+   Vodafone) do not expose per-device traffic accounting or queue APIs,
+   unsupported operations fail fast with a typed 422 `UNSUPPORTED_OPERATION`
+   and the UI adapts (status pill, disabled limit buttons, capability alerts).
 
 # 16. Definition of Done — Acceptance Checklist
 

@@ -7,7 +7,8 @@ import { useSystemStatus } from "@/lib/api/modules/system/hooks";
 /** Live network-mode / router-link indicator shown in the topbar. */
 export function NetworkStatusPill() {
   const { data, isLoading } = useSystemStatus(10_000);
-  const simulated = data?.networkMode === "simulated";
+  const isSimulated = data?.networkMode === "simulated";
+  const isLan = data?.networkMode === "lan";
 
   if (isLoading && !data) {
     return (
@@ -19,6 +20,16 @@ export function NetworkStatusPill() {
   }
 
   const connected = Boolean(data?.routerConnected);
+
+  const label = isSimulated
+    ? "محاكاة"
+    : isLan
+      ? connected
+        ? "شبكة محلية (LAN)"
+        : "الشبكة غير متصلة"
+      : connected
+        ? "الراوتر متصل"
+        : "الراوتر غير متصل";
 
   return (
     <Badge
@@ -37,7 +48,7 @@ export function NetworkStatusPill() {
       ) : (
         <Router className="size-3" aria-hidden />
       )}
-      {simulated ? "محاكاة" : connected ? "الراوتر متصل" : "الراوتر غير متصل"}
+      {label}
     </Badge>
   );
 }

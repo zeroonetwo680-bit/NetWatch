@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-export type NetworkMode = "simulated" | "mikrotik";
+export type NetworkMode = "simulated" | "mikrotik" | "lan";
 
 import { FALLBACK_SESSION_SECRET, getSessionSecret } from "./session-secret";
 
 const envSchema = z.object({
-  NETWORK_MODE: z.enum(["simulated", "mikrotik"]).catch("simulated"),
+  NETWORK_MODE: z.enum(["simulated", "mikrotik", "lan"]).catch("simulated"),
   MIKROTIK_HOST: z.string().min(1).catch("192.168.88.1"),
   MIKROTIK_PORT: z.coerce.number().int().positive().catch(8728),
   MIKROTIK_USER: z.string().min(1).catch("admin"),
@@ -18,6 +18,17 @@ const envSchema = z.object({
     .catch(10_000),
   SAMPLE_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).catch(7),
   SIM_DEVICE_COUNT: z.coerce.number().int().min(1).max(200).catch(10),
+  // LAN-discovery mode (any router — Huawei/TP-Link/…): no router API needed.
+  LAN_SUBNET: z.string().catch(""),
+  LAN_PING_SWEEP: z.string().catch("true"),
+  LAN_SWEEP_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(30_000)
+    .max(3_600_000)
+    .catch(120_000),
+  LAN_REVERSE_DNS: z.string().catch("true"),
+  LAN_UPNP: z.string().catch("true"),
   DATABASE_PATH: z.string().min(1).catch("./data/netwatch.db"),
   SESSION_SECRET: z.string().min(16).catch(FALLBACK_SESSION_SECRET),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 30).catch(24),
@@ -55,6 +66,13 @@ export const appConfig = {
     adminPassword: parsed.ADMIN_PASSWORD,
     demoUsername: parsed.DEMO_USER_USERNAME,
     demoPassword: parsed.DEMO_USER_PASSWORD,
+  },
+  lan: {
+    subnet: parsed.LAN_SUBNET.trim() || null,
+    pingSweep: parsed.LAN_PING_SWEEP !== "false",
+    sweepIntervalMs: parsed.LAN_SWEEP_INTERVAL_MS,
+    reverseDns: parsed.LAN_REVERSE_DNS !== "false",
+    upnp: parsed.LAN_UPNP !== "false",
   },
   mikrotik: {
     host: parsed.MIKROTIK_HOST,

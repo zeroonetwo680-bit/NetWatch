@@ -56,7 +56,9 @@ pnpm dev                       # http://localhost:3000
 
 | المتغير | الافتراضي | الوصف |
 |---|---|---|
-| `NETWORK_MODE` | `simulated` | `simulated` شبكة افتراضية — `mikrotik` راوتر حقيقي |
+| `NETWORK_MODE` | `simulated` | `simulated` شبكة افتراضية — `mikrotik` راوتر ميكروتيك — `lan` اكتشاف الأجهزة عبر ARP لأي راوتر (هواوي، تي بي لينك، فودافون) |
+| `LAN_SUBNET` | (تلقائي) | نطاق الشبكة المحلية لوضع `lan` مثل `192.168.1.0/24` |
+| `LAN_PING_SWEEP` | `true` | مسح النطاق بـ ping لاكتشاف الأجهزة الجديدة |
 | `MIKROTIK_HOST` | `192.168.88.1` | عنوان الراوتر |
 | `MIKROTIK_PORT` | `8728` | منفذ RouterOS API |
 | `MIKROTIK_USER` / `MIKROTIK_PASSWORD` | `admin` / (فارغ) | بيانات الدخول للراوتر |
@@ -78,7 +80,7 @@ pnpm dev           # تشغيل التطوير (يستمع على 0.0.0.0)
 pnpm build         # بناء الإنتاج
 pnpm start         # تشغيل الإنتاج
 pnpm lint          # ESLint
-pnpm test          # Vitest (39 اختبارًا)
+pnpm test          # Vitest (56 اختبارًا)
 pnpm db:generate   # توليد ترحيلات Drizzle
 pnpm db:migrate    # تطبيق الترحيلات
 pnpm db:studio     # Drizzle Studio

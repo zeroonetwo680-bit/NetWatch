@@ -21,6 +21,26 @@ export function useSystemStatus(refetchInterval = 10_000) {
   });
 }
 
+/**
+ * Capabilities of the active data source. Defaults are optimistic (true) so
+ * the UI never hides a feature because the first status call hasn't landed;
+ * the server still rejects unsupported operations with a 422.
+ */
+export function useCapabilities(refetchInterval = 30_000) {
+  const { data } = useSystemStatus(refetchInterval);
+  const capabilities = data?.capabilities ?? null;
+
+  return {
+    mode: data?.networkMode ?? null,
+    loaded: capabilities != null,
+    perDeviceTraffic: capabilities?.perDeviceTraffic ?? true,
+    totalTraffic: capabilities?.totalTraffic ?? true,
+    speedLimit: capabilities?.speedLimit ?? true,
+    blocking: capabilities?.blocking ?? true,
+    note: capabilities?.note ?? null,
+  };
+}
+
 export function useSettings(enabled = true) {
   return useQuery({
     queryKey: systemKeys.settings(),

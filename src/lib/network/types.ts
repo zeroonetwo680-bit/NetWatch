@@ -10,7 +10,16 @@ export type RouterDeviceSnapshot = {
   mac: string;
   ip: string | null;
   hostname: string | null;
+  /** Vendor guessed from the MAC OUI (best-effort, may be null). */
+  vendor?: string | null;
   online: boolean;
+  /**
+   * False when the data source can only see the device's presence and not
+   * its traffic counters (LAN discovery on a non-MikroTik router).
+   * The poller MUST skip usage accounting for such devices instead of
+   * storing fake zeroes.
+   */
+  metricsAvailable?: boolean;
   /** Cumulative download counter in bytes (may reset on router reboot). */
   rxBytesTotal: number;
   /** Cumulative upload counter in bytes (may reset on router reboot). */
@@ -21,13 +30,43 @@ export type RouterDeviceSnapshot = {
   txBps: number | null;
 };
 
+/** What this data source can actually do — drives UI affordances. */
+export type AdapterCapabilities = {
+  /** Per-device byte counters / rates. */
+  perDeviceTraffic: boolean;
+  /** Network-wide WAN throughput (UPnP IGD or router counters). */
+  totalTraffic: boolean;
+  speedLimit: boolean;
+  blocking: boolean;
+  /** Arabic explanation shown when a capability is missing. */
+  note: string | null;
+};
+
+/** Capabilities of a router that exposes a real API (or the simulator). */
+export const FULL_CAPABILITIES: AdapterCapabilities = {
+  perDeviceTraffic: true,
+  totalTraffic: true,
+  speedLimit: true,
+  blocking: true,
+  note: null,
+};
+
+export type TotalThroughput = {
+  downloadMbps: number | null;
+  uploadMbps: number | null;
+};
+
 export type AdapterStatus = {
-  mode: "simulated" | "mikrotik";
+  mode: NetworkMode;
   connected: boolean;
+  /** Capabilities of the active data source. */
+  capabilities: AdapterCapabilities;
   lastPollAt: string | null;
   lastError: string | null;
   deviceCount: number;
 };
+
+export type NetworkMode = "simulated" | "mikrotik" | "lan";
 
 export type MikrotikConnectionConfig = {
   host: string;
@@ -46,8 +85,21 @@ export class AdapterError extends Error {
   }
 }
 
+/**
+ * Thrown when the active data source cannot perform an operation
+ * (e.g. speed limits on a router that exposes no API). Surfaces to the
+ * client as a 422 ApiProblem with an Arabic message.
+ */
+export class UnsupportedOperationError extends AdapterError {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsupportedOperationError";
+  }
+}
+
+
 export interface NetworkAdapter {
-  readonly mode: "simulated" | "mikrotik";
+  readonly mode: NetworkMode;
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   status(): AdapterStatus;
@@ -62,4 +114,9 @@ export interface NetworkAdapter {
   setBlocked(mac: string, blocked: boolean): Promise<void>;
   /** Runtime connection settings (used by the mikrotik adapter only). */
   setConnectionConfig(config: MikrotikConnectionConfig): void;
+  /**
+   * Network-wide WAN throughput. Optional: only sources that can measure it
+   * (UPnP-capable routers, simulated network) implement it.
+   */
+  totalThroughput?(): Promise<TotalThroughput | null>;
 }

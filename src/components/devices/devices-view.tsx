@@ -67,6 +67,7 @@ import {
 } from "@/lib/api/modules/devices/hooks";
 import { useUserOptions } from "@/lib/api/modules/users/hooks";
 import { useSession } from "@/lib/api/modules/auth/hooks";
+import { useCapabilities } from "@/lib/api/modules/system/hooks";
 import { formatBytes, formatMbps } from "@/lib/format";
 import type { DeviceFilter } from "@/lib/api/schemas/device";
 
@@ -122,6 +123,7 @@ export function DevicesView() {
   const block = useBlockDevice();
   const remove = useDeleteDevice();
   const userOptions = useUserOptions();
+  const capabilities = useCapabilities();
 
   const items = devices.data?.items ?? [];
   const meta = devices.data?.meta;
@@ -286,15 +288,27 @@ export function DevicesView() {
                       <StatusBadge status={device.status} />
                     </TableCell>
                     <TableCell className="text-end font-mono text-xs ltr-island">
-                      ↓ {formatMbps(device.currentDownloadMbps ?? 0)}
-                      <br />
-                      ↑ {formatMbps(device.currentUploadMbps ?? 0)}
+                      {capabilities.perDeviceTraffic ? (
+                        <>
+                          ↓ {formatMbps(device.currentDownloadMbps ?? 0)}
+                          <br />
+                          ↑ {formatMbps(device.currentUploadMbps ?? 0)}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-end text-xs">
-                      {formatBytes(device.todayBytes.download)}
-                      <span className="block text-muted-foreground">
-                        {formatBytes(device.todayBytes.upload)} رفع
-                      </span>
+                      {capabilities.perDeviceTraffic ? (
+                        <>
+                          {formatBytes(device.todayBytes.download)}
+                          <span className="block text-muted-foreground">
+                            {formatBytes(device.todayBytes.upload)} رفع
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-end">
                       <DropdownMenu dir="rtl">
@@ -335,35 +349,37 @@ export function DevicesView() {
                                 <UserPlus className="size-4" aria-hidden />
                                 إسناد إلى مستخدم
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() =>
-                                  block.mutate(
-                                    {
-                                      id: device.id,
-                                      blocked: device.status !== "blocked",
-                                    },
-                                    {
-                                      onSuccess: () =>
-                                        toast.success(
-                                          device.status === "blocked"
-                                            ? "تم إلغاء حظر الجهاز"
-                                            : "تم حظر الجهاز",
-                                        ),
-                                      onError: (error) =>
-                                        notifyError(error, "تعذّر تغيير حالة الحظر"),
-                                    },
-                                  )
-                                }
-                              >
-                                {device.status === "blocked" ? (
-                                  <ShieldCheck className="size-4" aria-hidden />
-                                ) : (
-                                  <Ban className="size-4" aria-hidden />
-                                )}
-                                {device.status === "blocked"
-                                  ? "إلغاء الحظر"
-                                  : "حظر الجهاز"}
-                              </DropdownMenuItem>
+                              {capabilities.blocking ? (
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    block.mutate(
+                                      {
+                                        id: device.id,
+                                        blocked: device.status !== "blocked",
+                                      },
+                                      {
+                                        onSuccess: () =>
+                                          toast.success(
+                                            device.status === "blocked"
+                                              ? "تم إلغاء حظر الجهاز"
+                                              : "تم حظر الجهاز",
+                                          ),
+                                        onError: (error) =>
+                                          notifyError(error, "تعذّر تغيير حالة الحظر"),
+                                      },
+                                    )
+                                  }
+                                >
+                                  {device.status === "blocked" ? (
+                                    <ShieldCheck className="size-4" aria-hidden />
+                                  ) : (
+                                    <Ban className="size-4" aria-hidden />
+                                  )}
+                                  {device.status === "blocked"
+                                    ? "إلغاء الحظر"
+                                    : "حظر الجهاز"}
+                                </DropdownMenuItem>
+                              ) : null}
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onSelect={() =>

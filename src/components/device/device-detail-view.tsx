@@ -3,11 +3,13 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import {
+  AlertTriangle,
   ArrowLeft,
   Ban,
   CalendarDays,
   Gauge,
   HardDrive,
+  Info,
   Loader2,
   ShieldCheck,
   Trash2,
@@ -15,6 +17,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +49,7 @@ import { useDevice } from "@/lib/api/modules/devices/hooks";
 import { useSaveSpeedLimit } from "@/lib/api/modules/speed-limits/hooks";
 import { useDeviceUsage } from "@/lib/api/modules/usage/hooks";
 import { useDeviceTraffic } from "@/lib/api/modules/traffic/hooks";
+import { useCapabilities } from "@/lib/api/modules/system/hooks";
 import { formatBytes, formatMbps } from "@/lib/format";
 
 const TrafficAreaChart = dynamic(
@@ -108,6 +112,7 @@ function DeviceDetailBody({
   const block = useBlockDevice();
   const remove = useDeleteDevice();
   const rename = useRenameDevice();
+  const capabilities = useCapabilities();
 
   const [nameDraft, setNameDraft] = useState(info.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -187,33 +192,35 @@ function DeviceDetailBody({
 
             {isAdmin ? (
               <>
-                <Button
-                  size="sm"
-                  variant={info.status === "blocked" ? "outline" : "secondary"}
-                  onClick={() =>
-                    block.mutate(
-                      { id: info.id, blocked: info.status !== "blocked" },
-                      {
-                        onSuccess: () =>
-                          toast.success(
-                            info.status === "blocked"
-                              ? "تم إلغاء حظر الجهاز"
-                              : "تم حظر الجهاز",
-                          ),
-                        onError: (error) =>
-                          notifyError(error, "تعذّر تغيير حالة الحظر"),
-                      },
-                    )
-                  }
-                  disabled={block.isPending}
-                >
-                  {info.status === "blocked" ? (
-                    <ShieldCheck className="size-4" aria-hidden />
-                  ) : (
-                    <Ban className="size-4" aria-hidden />
-                  )}
-                  {info.status === "blocked" ? "إلغاء الحظر" : "حظر"}
-                </Button>
+                {capabilities.blocking ? (
+                  <Button
+                    size="sm"
+                    variant={info.status === "blocked" ? "outline" : "secondary"}
+                    onClick={() =>
+                      block.mutate(
+                        { id: info.id, blocked: info.status !== "blocked" },
+                        {
+                          onSuccess: () =>
+                            toast.success(
+                              info.status === "blocked"
+                                ? "تم إلغاء حظر الجهاز"
+                                : "تم حظر الجهاز",
+                            ),
+                          onError: (error) =>
+                            notifyError(error, "تعذّر تغيير حالة الحظر"),
+                        },
+                      )
+                    }
+                    disabled={block.isPending}
+                  >
+                    {info.status === "blocked" ? (
+                      <ShieldCheck className="size-4" aria-hidden />
+                    ) : (
+                      <Ban className="size-4" aria-hidden />
+                    )}
+                    {info.status === "blocked" ? "إلغاء الحظر" : "حظر"}
+                  </Button>
+                ) : null}
                 <Button
                   size="sm"
                   variant="destructive"
@@ -239,24 +246,50 @@ function DeviceDetailBody({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="التنزيل الآن"
-              value={formatMbps(info.currentDownloadMbps ?? 0)}
+              value={
+                capabilities.perDeviceTraffic
+                  ? formatMbps(info.currentDownloadMbps ?? 0)
+                  : "—"
+              }
+              hint={capabilities.perDeviceTraffic ? undefined : "يتطلب راوتر MikroTik"}
               icon={<Gauge className="size-4" aria-hidden />}
             />
             <StatCard
               label="الرفع الآن"
-              value={formatMbps(info.currentUploadMbps ?? 0)}
+              value={
+                capabilities.perDeviceTraffic
+                  ? formatMbps(info.currentUploadMbps ?? 0)
+                  : "—"
+              }
+              hint={capabilities.perDeviceTraffic ? undefined : "يتطلب راوتر MikroTik"}
               icon={<Gauge className="size-4" aria-hidden />}
             />
             <StatCard
               label="استهلاك اليوم"
-              value={formatBytes(info.todayBytes.download)}
-              hint={`رفع: ${formatBytes(info.todayBytes.upload)}`}
+              value={
+                capabilities.perDeviceTraffic
+                  ? formatBytes(info.todayBytes.download)
+                  : "—"
+              }
+              hint={
+                capabilities.perDeviceTraffic
+                  ? `رفع: ${formatBytes(info.todayBytes.upload)}`
+                  : "يتطلب راوتر MikroTik"
+              }
               icon={<CalendarDays className="size-4" aria-hidden />}
             />
             <StatCard
               label="استهلاك الشهر"
-              value={formatBytes(info.monthBytes.download)}
-              hint={`رفع: ${formatBytes(info.monthBytes.upload)}`}
+              value={
+                capabilities.perDeviceTraffic
+                  ? formatBytes(info.monthBytes.download)
+                  : "—"
+              }
+              hint={
+                capabilities.perDeviceTraffic
+                  ? `رفع: ${formatBytes(info.monthBytes.upload)}`
+                  : "يتطلب راوتر MikroTik"
+              }
               icon={<HardDrive className="size-4" aria-hidden />}
             />
           </div>
@@ -268,6 +301,11 @@ function DeviceDetailBody({
             <CardContent>
               {traffic.isLoading ? (
                 <Skeleton className="h-[240px] w-full" />
+              ) : !capabilities.perDeviceTraffic ? (
+                <EmptyState
+                  title="الرسم البياني غير متاح"
+                  description="مراقبة استهلاك الجهاز لحظياً تتطلب راوتر MikroTik يدعم قراءة عدادات الحزم."
+                />
               ) : (traffic.data ?? []).length === 0 ? (
                 <EmptyState title="لا توجد عينات بعد" description="انتظر دورة الفحص القادمة." />
               ) : (
@@ -315,6 +353,15 @@ function DeviceDetailBody({
         </TabsContent>
 
         <TabsContent value="usage" className="space-y-4">
+          {!capabilities.perDeviceTraffic ? (
+            <Alert className="border-info/30 bg-info/5">
+              <Info className="size-4 text-info" aria-hidden />
+              <AlertTitle>سجل استهلاك الأجهزة غير متاح</AlertTitle>
+              <AlertDescription>
+                راوترات المنازل العادية لا تسجل استهلاك كل جهاز منفصلاً. لتسجيل استهلاك الأجهزة يومياً وشهرياً يلزم راوتر MikroTik.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <Tabs
               value={granularity}
@@ -429,8 +476,31 @@ type SpeedLimit = NonNullable<
 
 function SpeedLimitCard({ deviceId }: { deviceId: number }) {
   const { data: device, isLoading } = useDevice(deviceId);
+  const capabilities = useCapabilities();
   if (isLoading) return <Skeleton className="h-64 w-full" />;
   if (!device) return null;
+  if (!capabilities.speedLimit) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gauge className="size-4" aria-hidden />
+            حد السرعة
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert className="border-warning/40 bg-warning/10">
+            <AlertTriangle className="size-4 text-warning" aria-hidden />
+            <AlertTitle>تحديد السرعة غير مدعوم على الراوتر الحالي</AlertTitle>
+            <AlertDescription>
+              {capabilities.note ??
+                "يتطلب تطبيق حدود السرعة وجود راوتر MikroTik يدعم Simple Queues."}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
   return <SpeedLimitForm key={deviceId} deviceId={deviceId} limit={device.speedLimit} />;
 }
 

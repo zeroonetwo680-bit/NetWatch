@@ -21,5 +21,5 @@ export const GET = handle(async (request: Request) => {
     );
   }
 
-  return ok(systemStatusSchema.parse(getSystemStatus()));
+  return ok(systemStatusSchema.parse(await getSystemStatus()));
 });

@@ -6,6 +6,7 @@ import { devices, speedLimits, users } from "@/db/schema";
 import { getNetworkAdapter } from "@/lib/network";
 import type { SpeedLimitDto } from "@/lib/api/schemas/device";
 import { ApiError } from "../errors";
+import { requireCapability } from "../capabilities";
 import type { SessionUser } from "../auth";
 import { canAccessDevice } from "../auth";
 import { getDeviceRow } from "./devices";
@@ -103,6 +104,7 @@ export async function upsertSpeedLimit(
 ): Promise<SpeedLimitDto> {
   const device = getDeviceRow(session, deviceId);
   const adapter = getNetworkAdapter();
+  requireCapability("speedLimit", "تحديد السرعة");
   const db = getDb();
   const now = new Date();
 

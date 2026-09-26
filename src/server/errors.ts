@@ -11,6 +11,7 @@ export type ApiErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
+  | "UNSUPPORTED_OPERATION"
   | "NETWORK_ADAPTER_ERROR"
   | "INTERNAL";
 

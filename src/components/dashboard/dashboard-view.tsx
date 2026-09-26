@@ -6,6 +6,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   CalendarDays,
+  Info,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -62,12 +63,61 @@ export function DashboardView() {
     ...topDevices.map((d) => d.downloadMbps + d.uploadMbps),
   );
 
+  const isLan = status.data?.networkMode === "lan";
+  const perDeviceTraffic = status.data?.capabilities?.perDeviceTraffic ?? true;
+  const upnpThroughput = status.data?.totalThroughput;
+
+  const downloadDisplay =
+    upnpThroughput?.downloadMbps != null
+      ? formatMbps(upnpThroughput.downloadMbps)
+      : perDeviceTraffic
+        ? formatMbps(summary.data?.networkDownloadMbps ?? 0)
+        : "—";
+
+  const downloadHint =
+    upnpThroughput?.downloadMbps != null
+      ? "إجمالي الراوتر (UPnP)"
+      : perDeviceTraffic
+        ? undefined
+        : "غير مدعوم على هذا الراوتر";
+
+  const uploadDisplay =
+    upnpThroughput?.uploadMbps != null
+      ? formatMbps(upnpThroughput.uploadMbps)
+      : perDeviceTraffic
+        ? formatMbps(summary.data?.networkUploadMbps ?? 0)
+        : "—";
+
+  const uploadHint =
+    upnpThroughput?.uploadMbps != null
+      ? "إجمالي الراوتر (UPnP)"
+      : perDeviceTraffic
+        ? undefined
+        : "غير مدعوم على هذا الراوتر";
+
+  const todayDownloadDisplay = perDeviceTraffic
+    ? formatBytes(summary.data?.today.downloadBytes ?? 0)
+    : "—";
+  const todayHint = perDeviceTraffic
+    ? `رفع: ${formatBytes(summary.data?.today.uploadBytes ?? 0)}`
+    : "يتطلب راوتر MikroTik";
+
   return (
     <PageContainer>
       <PageHeader
         title="لوحة التحكم"
         description="نظرة لحظية على الشبكة والأجهزة المتصلة"
       />
+
+      {isLan ? (
+        <Alert className="border-info/30 bg-info/5">
+          <Info className="size-4 text-info" aria-hidden />
+          <AlertTitle>وضع اكتشاف الشبكة (LAN Discovery)</AlertTitle>
+          <AlertDescription>
+            يتم اكتشاف أجهزتك الحقيقية المتصلة محليًا عبر جدول ARP. راوترات فودافون/هواوي المنزلية لا تدعم معرفة استهلاك كل جهاز أو تحديد السرعة — لتفعيل هذه المزايا بالكامل يلزم راوتر MikroTik.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <section
         aria-label="إحصاءات الشبكة"
@@ -85,20 +135,22 @@ export function DashboardView() {
           label="التنزيل الآن"
           icon={<ArrowDownToLine className="size-4" aria-hidden />}
           loading={summary.isLoading}
-          value={formatMbps(summary.data?.networkDownloadMbps ?? 0)}
+          value={downloadDisplay}
+          hint={downloadHint}
         />
         <StatCard
           label="الرفع الآن"
           icon={<ArrowUpFromLine className="size-4" aria-hidden />}
           loading={summary.isLoading}
-          value={formatMbps(summary.data?.networkUploadMbps ?? 0)}
+          value={uploadDisplay}
+          hint={uploadHint}
         />
         <StatCard
           label="استهلاك اليوم"
           icon={<CalendarDays className="size-4" aria-hidden />}
           loading={summary.isLoading}
-          value={formatBytes(summary.data?.today.downloadBytes ?? 0)}
-          hint={`رفع: ${formatBytes(summary.data?.today.uploadBytes ?? 0)}`}
+          value={todayDownloadDisplay}
+          hint={todayHint}
         />
       </section>
 
@@ -147,6 +199,11 @@ export function DashboardView() {
                   <Skeleton key={i} className="h-10 w-full" />
                 ))}
               </div>
+            ) : !perDeviceTraffic ? (
+              <EmptyState
+                title="غير متاح على هذا الراوتر"
+                description="إحصاءات استهلاك كل جهاز تتطلب راوتر MikroTik."
+              />
             ) : topDevices.length === 0 ? (
               <EmptyState title="لا توجد أجهزة" description="لم يتم اكتشاف أجهزة بعد." />
             ) : (
@@ -203,10 +260,10 @@ export function DashboardView() {
                       <StatusBadge status={device.status} />
                     </TableCell>
                     <TableCell className="text-end font-mono ltr-island">
-                      {formatMbps(device.downloadMbps)}
+                      {perDeviceTraffic ? formatMbps(device.downloadMbps) : "—"}
                     </TableCell>
                     <TableCell className="text-end font-mono ltr-island">
-                      {formatMbps(device.uploadMbps)}
+                      {perDeviceTraffic ? formatMbps(device.uploadMbps) : "—"}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -4,7 +4,7 @@ import type {
   NetworkAdapter,
   RouterDeviceSnapshot,
 } from "./types";
-import { AdapterError } from "./types";
+import { AdapterError, FULL_CAPABILITIES } from "./types";
 import { normalizeMac } from "@/lib/usage/calculator";
 
 /**
@@ -180,6 +180,7 @@ export class MikrotikNetwork implements NetworkAdapter {
     return {
       mode: this.mode,
       connected: this.connected,
+      capabilities: FULL_CAPABILITIES,
       lastPollAt: this.lastPollAt,
       lastError: this.lastError,
       deviceCount: this.lastDeviceCount,

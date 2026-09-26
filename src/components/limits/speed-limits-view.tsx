@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Gauge, Info } from "lucide-react";
+import { AlertTriangle, Gauge, Info } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +42,7 @@ import {
   useSpeedLimits,
   useToggleSpeedLimit,
 } from "@/lib/api/modules/speed-limits/hooks";
+import { useCapabilities } from "@/lib/api/modules/system/hooks";
 
 type Row = {
   id: number;
@@ -64,6 +66,7 @@ export function SpeedLimitsView() {
   const toggle = useToggleSpeedLimit();
   const save = useSaveSpeedLimit();
   const remove = useRemoveSpeedLimit();
+  const capabilities = useCapabilities();
 
   const [editing, setEditing] = useState<Row | null>(null);
 
@@ -83,6 +86,17 @@ export function SpeedLimitsView() {
         title="حدود السرعة"
         description="تحكّم في سرعة التنزيل والرفع لكل جهاز — يُطبَّق على الراوتر"
       />
+
+      {!capabilities.speedLimit ? (
+        <Alert className="border-warning/40 bg-warning/10">
+          <AlertTriangle className="size-4 text-warning" aria-hidden />
+          <AlertTitle>تحديد السرعة غير مدعوم على الراوتر الحالي</AlertTitle>
+          <AlertDescription>
+            {capabilities.note ??
+              "يتطلب تطبيق حدود السرعة وجود راوتر MikroTik يدعم Simple Queues."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card className="border-info/30 bg-info/5">
         <CardContent className="flex items-start gap-3 text-sm">
@@ -151,7 +165,7 @@ export function SpeedLimitsView() {
                     <TableCell className="text-center">
                       <Switch
                         checked={row.enabled}
-                        disabled={row.id === 0 || toggle.isPending}
+                        disabled={!capabilities.speedLimit || row.id === 0 || toggle.isPending}
                         aria-label={`تفعيل حد السرعة لجهاز ${row.deviceName}`}
                         onCheckedChange={(checked) =>
                           toggle.mutate(
@@ -199,6 +213,7 @@ export function SpeedLimitsView() {
                         <Button
                           variant="outline"
                           size="sm"
+                          disabled={!capabilities.speedLimit}
                           onClick={() => setEditing(row)}
                         >
                           {row.id === 0 ? "إضافة حد" : "تعديل"}
@@ -208,6 +223,7 @@ export function SpeedLimitsView() {
                             variant="ghost"
                             size="sm"
                             className="text-destructive"
+                            disabled={!capabilities.speedLimit}
                             onClick={() =>
                               remove.mutate(row.deviceId, {
                                 onSuccess: () => toast.success("تم حذف الحد"),
