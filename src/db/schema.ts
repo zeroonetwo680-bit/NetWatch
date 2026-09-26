@@ -137,6 +137,38 @@ export const settings = sqliteTable("settings", {
     .$defaultFn(() => new Date()),
 });
 
+// ── dns_rules (custom domain blocking rules) ─────────────────────────────
+export const dnsRules = sqliteTable(
+  "dns_rules",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    domain: text("domain").notNull().unique(),
+    action: text("action", { enum: ["block", "allow"] })
+      .notNull()
+      .default("block"),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    category: text("category").notNull().default("custom"),
+    comment: text("comment"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("dns_rules_domain_idx").on(t.domain)],
+);
+
+// ── dns_blocked_devices (internet cut via DNS per device) ────────────────
+export const dnsBlockedDevices = sqliteTable("dns_blocked_devices", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  deviceId: integer("device_id")
+    .notNull()
+    .unique()
+    .references(() => devices.id, { onDelete: "cascade" }),
+  blockAll: integer("block_all", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // ── relations ────────────────────────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
   devices: many(devices),
@@ -150,6 +182,10 @@ export const devicesRelations = relations(devices, ({ one, many }) => ({
   speedLimit: one(speedLimits, {
     fields: [devices.id],
     references: [speedLimits.deviceId],
+  }),
+  dnsBlock: one(dnsBlockedDevices, {
+    fields: [devices.id],
+    references: [dnsBlockedDevices.deviceId],
   }),
   trafficSamples: many(trafficSamples),
   usageDaily: many(usageDaily),
@@ -184,6 +220,16 @@ export const usageMonthlyRelations = relations(usageMonthly, ({ one }) => ({
   }),
 }));
 
+export const dnsBlockedDevicesRelations = relations(
+  dnsBlockedDevices,
+  ({ one }) => ({
+    device: one(devices, {
+      fields: [dnsBlockedDevices.deviceId],
+      references: [devices.id],
+    }),
+  }),
+);
+
 // ── inferred types ───────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -196,6 +242,9 @@ export type NewTrafficSample = typeof trafficSamples.$inferInsert;
 export type UsageDailyRow = typeof usageDaily.$inferSelect;
 export type UsageMonthlyRow = typeof usageMonthly.$inferSelect;
 export type SettingRow = typeof settings.$inferSelect;
+export type DnsRule = typeof dnsRules.$inferSelect;
+export type NewDnsRule = typeof dnsRules.$inferInsert;
+export type DnsBlockedDevice = typeof dnsBlockedDevices.$inferSelect;
 
 export type DeviceStatus = "online" | "offline" | "blocked";
 export type UserRole = "admin" | "user";

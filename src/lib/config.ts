@@ -29,6 +29,11 @@ const envSchema = z.object({
     .catch(120_000),
   LAN_REVERSE_DNS: z.string().catch("true"),
   LAN_UPNP: z.string().catch("true"),
+  // DNS Controller (local DNS sinkhole / device controller)
+  DNS_ENABLED: z.string().catch("true"),
+  DNS_PORT: z.coerce.number().int().positive().catch(53),
+  DNS_FALLBACK_PORT: z.coerce.number().int().positive().catch(5353),
+  DNS_UPSTREAM: z.string().catch("8.8.8.8,1.1.1.1"),
   DATABASE_PATH: z.string().min(1).catch("./data/netwatch.db"),
   SESSION_SECRET: z.string().min(16).catch(FALLBACK_SESSION_SECRET),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 30).catch(24),
@@ -73,6 +78,14 @@ export const appConfig = {
     sweepIntervalMs: parsed.LAN_SWEEP_INTERVAL_MS,
     reverseDns: parsed.LAN_REVERSE_DNS !== "false",
     upnp: parsed.LAN_UPNP !== "false",
+  },
+  dns: {
+    enabled: parsed.DNS_ENABLED !== "false",
+    port: parsed.DNS_PORT,
+    fallbackPort: parsed.DNS_FALLBACK_PORT,
+    upstream: parsed.DNS_UPSTREAM.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
   mikrotik: {
     host: parsed.MIKROTIK_HOST,

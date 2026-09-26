@@ -8,6 +8,13 @@
       "when": 1790409591250,
       "tag": "0000_small_purple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790433371071,
+      "tag": "0001_redundant_night_nurse",
+      "breakpoints": true
     }
   ]
 }

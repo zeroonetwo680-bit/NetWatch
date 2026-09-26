@@ -848,6 +848,10 @@ actual toolchain, all of them backwards-compatible with the spec:
    Vodafone) do not expose per-device traffic accounting or queue APIs,
    unsupported operations fail fast with a typed 422 `UNSUPPORTED_OPERATION`
    and the UI adapts (status pill, disabled limit buttons, capability alerts).
+9. **DNS Controller & Sinkhole**: embedded RFC 1035 UDP server running alongside
+   the poller, providing local domain blocking (exact + wildcards, returning
+   `0.0.0.0` or `::`), live query logging in an in-memory ring buffer, and
+   per-device internet cutoff without requiring any smart router hardware.
 
 # 16. Definition of Done — Acceptance Checklist
 
