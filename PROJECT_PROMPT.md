@@ -55,7 +55,8 @@ Background Poller (instrumentation.ts): sample counters → traffic_samples → 
 | Forms | `react-hook-form` ^7 + `@hookform/resolvers` | Login, device rename, speed-limit, settings, users |
 | Charts | `recharts` | Realtime line, daily/monthly bars, top devices |
 | Database | `better-sqlite3` + `drizzle-orm` (+ `drizzle-kit` dev) | WAL mode, migrations in `drizzle/` |
-| Router integration | `node-routeros` (RouterOS API) | Used ONLY inside `lib/network/mikrotik.ts` |
+| Router integration | `routeros-api` (RouterOS binary API) | Used ONLY inside `lib/network/mikrotik.ts` (node-routeros is discontinued) |
+
 | Auth | `jose` (JWT session cookie) + `bcryptjs` (password hash) | httpOnly cookie, no next-auth |
 | Theme | `next-themes` | Dark/light/system |
 | Toasts | `sonner` | Arabic messages |
@@ -76,7 +77,7 @@ pnpm dlx shadcn@latest init        # style: new-york, base color: neutral, css v
 pnpm dlx shadcn@latest add button card badge breadcrumb skeleton tabs accordion dialog alert-dialog sheet
 pnpm dlx shadcn@latest add progress checkbox radio-group select input label form separator dropdown-menu table switch avatar alert tooltip pagination
 pnpm add drizzle-orm better-sqlite3 zod @tanstack/react-query @tanstack/react-query-devtools
-pnpm add recharts lucide-react next-themes sonner date-fns bcryptjs jose node-routeros
+pnpm add recharts lucide-react next-themes sonner date-fns bcryptjs jose routeros-api
 pnpm add react-hook-form @hookform/resolvers
 pnpm add -D drizzle-kit @types/better-sqlite3 @types/bcryptjs vitest @types/node
 ```
@@ -124,8 +125,8 @@ pnpm add -D drizzle-kit @types/better-sqlite3 @types/bcryptjs vitest @types/node
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // better-sqlite3 & node-routeros are native/node-only — never bundle them.
-  serverExternalPackages: ["better-sqlite3", "node-routeros"],
+  // better-sqlite3 & routeros-api are native/node-only — never bundle them.
+  serverExternalPackages: ["better-sqlite3", "routeros-api"],
   images: { unoptimized: true },
   // Preview/tunnel hosts must be accepted by the dev server:
   allowedDevOrigins: ["*.e2b.app", "localhost"],
@@ -320,7 +321,7 @@ NetWatch/
 │   │   │   ├── types.ts             # NetworkAdapter interface + shared DTOs
 │   │   │   ├── index.ts             # getNetworkAdapter() factory (globalThis singleton)
 │   │   │   ├── simulator.ts         # in-memory virtual network
-│   │   │   └── mikrotik.ts          # node-routeros: leases/ARP discovery, counters, simple-queue, firewall block
+│   │   │   └── mikrotik.ts          # routeros-api: leases/ARP discovery, counters, simple-queue, firewall block
 │   │   ├── query-client.tsx         # "use client" QueryProvider
 │   │   └── api/                     # browser-side data layer
 │   │       ├── client.ts            # apiFetch: zod-validated responses, ApiError, ApiProblem parsing
@@ -507,7 +508,7 @@ An in-memory virtual network, deterministic-seed friendly, that behaves like a r
 
 ## 6.3 MikroTik adapter (`mikrotik.ts`)
 
-Uses `node-routeros` (RouterOS binary API, port 8728):
+Uses `routeros-api` (RouterOS binary API, port 8728):
 
 - `connect()` — login with `appConfig.mikrotik`; reconnect with backoff on failure; `status()` exposes `connected/lastError`.
 - `discover()` — merge `/ip/dhcp-server/lease/print` (where `bound`) and `/ip/arp/print` for `mac/ip/hostname`; online state from ARP `valid` flag + lease `active`; cumulative counters from `/interface/print?stats` mapped per device where possible, else per-connection rates from `/queue/simple/print` or `/ip/firewall/connection tracking`. Where RouterOS cannot give a per-device cumulative counter, derive deltas from `rx-bits-per-second/tx-bits-per-second × interval` and document the approximation in code comments.
