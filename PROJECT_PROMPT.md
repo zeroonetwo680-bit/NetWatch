@@ -56,6 +56,7 @@ Background Poller (instrumentation.ts): sample counters → traffic_samples → 
 | Charts | `recharts` | Realtime line, daily/monthly bars, top devices |
 | Database | `better-sqlite3` + `drizzle-orm` (+ `drizzle-kit` dev) | WAL mode, migrations in `drizzle/` |
 | Router integration | `routeros-api` (RouterOS binary API) | Used ONLY inside `lib/network/mikrotik.ts` (node-routeros is discontinued) |
+| Server-only guard | `server-only` | Imported by every module under `src/server/**` |
 
 | Auth | `jose` (JWT session cookie) + `bcryptjs` (password hash) | httpOnly cookie, no next-auth |
 | Theme | `next-themes` | Dark/light/system |
@@ -129,7 +130,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3", "routeros-api"],
   images: { unoptimized: true },
   // Preview/tunnel hosts must be accepted by the dev server:
-  allowedDevOrigins: ["*.e2b.app", "localhost"],
+  allowedDevOrigins: ["*.e2b.app"],
   // Do NOT set typescript.ignoreBuildErrors or eslint.ignoreDuringBuilds.
 };
 
@@ -244,10 +245,11 @@ NetWatch/
 │
 ├── src/
 │   ├── instrumentation.ts           # register(): starts the background poller (nodejs runtime)
-│   ├── middleware.ts                # session guard for pages + /api (except /api/auth/login)
+│   ├── proxy.ts                     # Next.js 16 proxy (was middleware): session guard for pages + /api
 │   │
 │   ├── app/
 │   │   ├── globals.css
+│   │   ├── api/                     # ← all route handlers live here (src/app/api)
 │   │   ├── layout.tsx               # <html lang="ar" dir="rtl"> + providers
 │   │   ├── loading.tsx / error.tsx / not-found.tsx
 │   │   ├── login/page.tsx
@@ -336,7 +338,9 @@ NetWatch/
 │   ├── usage-calculator.test.ts     # pure rollup/delta/format tests
 │   ├── simulator.test.ts            # adapter contract tests
 │   ├── auth.test.ts                 # hashing + session + role guards
-│   └── db-services.test.ts          # temp-file SQLite: migrate, seed, device upsert, usage rollup uniqueness
+│   ├── db-services.test.ts          # temp-file SQLite: migrate, seed, upsert, rollups, prune
+│   ├── helpers/db-test-modules.ts   # dynamic import surface (env set before import)
+│   └── stubs/server-only.ts         # stub for the bundler-only guard
 │
 └── docs/
     └── DEPLOYMENT.md                # single-VPS deployment, MikroTik prerequisites (API enabled, user perms), backup of data/netwatch.db
@@ -812,7 +816,34 @@ Users table: الاسم, اسم المستخدم, الدور (badge مدير/م�
 
 **Phase 10 — Hardening + docs + final gate.** A11y pass, dark-mode audit, 360–1440 responsive pass, RTL/LTR islands check, error coverage, `docs/DEPLOYMENT.md`, README (Arabic: what it is, quickstart, env table, screenshots placeholders). *Gate: full acceptance checklist below.*
 
-# 15. Definition of Done — Acceptance Checklist
+# 15. Implementation Notes (what actually shipped — keep in sync)
+
+The repository was built by following this document. Deviations forced by the
+actual toolchain, all of them backwards-compatible with the spec:
+
+1. **Next.js 16** renames `middleware.ts` → `proxy.ts` (node runtime, function
+   named `proxy`). The guard lives in `src/proxy.ts` and uses a JWT-only
+   verifier (`src/server/auth-edge.ts`) so the proxy bundle stays small.
+2. **Zod helpers** in `src/server/http.ts` are generic over
+   `z.ZodTypeAny` (`z.output<S>`), because `.catch()`/`.default()` make the
+   input and output types diverge.
+3. **Browser query filters** are plain TS types (`DeviceFilter`, `UserFilter`);
+   the Zod schemas validate on the server. This keeps the typed filter objects
+   in hooks/components readable.
+4. **React 19.2 lint** forbids `setState` inside effects. Dialogs and forms are
+   therefore rendered **keyed** and initialize state from props instead of
+   syncing in an effect.
+5. **Fonts** are self-hosted (`@fontsource-variable/cairo`,
+   `@fontsource-variable/jetbrains-mono`) via `next/font/local`, so the app
+   works offline and in sandboxes without Google Fonts access.
+6. **shadcn/ui** components were vendored from the upstream registry
+   (`new-york` style, radix base) and their imports rewritten to `@/lib/utils`
+   and `@/components/ui/*`.
+7. Tests stub the bundler-only `server-only` package (see `vitest.config.ts`),
+   and DB tests set `DATABASE_PATH` **before** importing modules because
+   `src/lib/config.ts` parses `process.env` at import time.
+
+# 16. Definition of Done — Acceptance Checklist
 
 1. [ ] `pnpm build` succeeds (TypeScript strict, no ignored errors) and `pnpm lint` has zero errors.
 2. [ ] `pnpm test` green — all four suites.
@@ -829,7 +860,7 @@ Users table: الاسم, اسم المستخدم, الدور (badge مدير/م�
 13. [ ] No secret (router password, session secret, hash) is ever returned by an API or exposed via `NEXT_PUBLIC_*`.
 14. [ ] `docs/DEPLOYMENT.md` + README explain: single-VPS deployment (`pnpm build && pnpm start`), MikroTik prerequisites (enable API service, dedicated user with `read,write,test` policy), backup = copy `data/netwatch.db`, env table.
 
-# 16. Strategy Provenance (how this prompt maps to the reference strategy)
+# 17. Strategy Provenance (how this prompt maps to the reference strategy)
 
 Keep these invariants while building — they are what make NetWatch maintainable:
 
