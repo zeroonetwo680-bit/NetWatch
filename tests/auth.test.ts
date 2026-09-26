@@ -80,3 +80,28 @@ describe("canAccessDevice", () => {
     expect(canAccessDevice(user, { id: 2, userId: null })).toBe(false);
   });
 });
+
+describe("shared session secret", () => {
+  it("derives the same key on the server and in the proxy", async () => {
+    // Regression guard: if the Node runtime and the proxy resolve different
+    // keys, every request bounces back to /login.
+    const { getSessionSecret, FALLBACK_SESSION_SECRET } = await import(
+      "@/lib/session-secret"
+    );
+    const previous = process.env.SESSION_SECRET;
+
+    try {
+      process.env.SESSION_SECRET = "a-very-long-test-secret-value-1234";
+      const first = getSessionSecret();
+      const second = getSessionSecret();
+      expect(first).toBe(second);
+      expect(first).toBe(process.env.SESSION_SECRET);
+
+      delete process.env.SESSION_SECRET;
+      expect(getSessionSecret()).toBe(FALLBACK_SESSION_SECRET);
+    } finally {
+      if (previous === undefined) delete process.env.SESSION_SECRET;
+      else process.env.SESSION_SECRET = previous;
+    }
+  });
+});

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export type NetworkMode = "simulated" | "mikrotik";
 
-const FALLBACK_SESSION_SECRET = "dev-only-insecure-secret-change-me";
+import { FALLBACK_SESSION_SECRET, getSessionSecret } from "./session-secret";
 
 const envSchema = z.object({
   NETWORK_MODE: z.enum(["simulated", "mikrotik"]).catch("simulated"),
@@ -45,7 +45,8 @@ export const appConfig = {
   simDeviceCount: parsed.SIM_DEVICE_COUNT,
   databasePath: parsed.DATABASE_PATH,
   session: {
-    secret: parsed.SESSION_SECRET,
+    // Resolved through the shared helper so the proxy and Node agree.
+    secret: getSessionSecret(),
     ttlHours: parsed.SESSION_TTL_HOURS,
     cookieName: "netwatch_session",
   },

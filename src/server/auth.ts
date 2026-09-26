@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { devices, users, type UserRole } from "@/db/schema";
 import { appConfig } from "@/lib/config";
+import { getSessionSecret } from "@/lib/session-secret";
 import { ApiError } from "./errors";
 
 export type SessionUser = {
@@ -26,7 +27,8 @@ export class UnauthorizedError extends ApiError {
 }
 
 function secretKey(): Uint8Array {
-  return new TextEncoder().encode(appConfig.session.secret);
+  // Same derivation as the proxy — see src/lib/session-secret.ts.
+  return new TextEncoder().encode(getSessionSecret());
 }
 
 export function hashPassword(plain: string): string {
