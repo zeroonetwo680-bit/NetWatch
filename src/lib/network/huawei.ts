@@ -157,7 +157,11 @@ export class HuaweiWebAdapter implements NetworkAdapter {
         this.lastError = `فشل تسجيل الدخول إلى ${this.config.host} — ${
           err instanceof Error ? err.message : String(err)
         }`;
-        this.reconnectAfter = Date.now() + 30_000;
+        // Back off longer when the router is locked out (pageName='/') so the
+        // 30-minute lockout timer can expire without being reset by retries.
+        // Use a shorter backoff for other transient login errors.
+        const isLockout = err instanceof Error && err.message.includes("مقفلاً مؤقتاً");
+        this.reconnectAfter = Date.now() + (isLockout ? 35 * 60_000 : 5 * 60_000);
         throw new AdapterError(this.lastError, err);
       })
       .finally(() => {
@@ -197,7 +201,12 @@ export class HuaweiWebAdapter implements NetworkAdapter {
       if (/FailStat\s*=\s*['"]1['"]/.test(html) || /LoginTimes\s*=\s*['"][1-9]/.test(html)) {
         throw new Error("بيانات الدخول غير صحيحة (اسم المستخدم أو كلمة المرور)");
       }
-      throw new Error("لم يُعاد أي session cookie — تأكد من عنوان الراوتر وبيانات الدخول");
+      // pageName='/' means the router rejected the session (wrong password or
+      // temporary lockout after repeated failed attempts — wait for it to clear)
+      if (/var\s+pageName\s*=\s*['"]\/['"]/.test(html)) {
+        throw new Error("الراوتر رفض تسجيل الدخول — قد يكون مقفلاً مؤقتاً بسبب محاولات متكررة، سيتم إعادة المحاولة");
+      }
+      throw new Error(`لم يُعاد أي session cookie (HTTP ${loginResp.status}) — تأكد من عنوان الراوتر وبيانات الدخول`);
     }
 
     this.sessionCookie = cookieMatch[0];
