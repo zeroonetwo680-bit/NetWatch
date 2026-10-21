@@ -177,14 +177,12 @@ export class HuaweiWebAdapter implements NetworkAdapter {
       throw new Error(`GetRandCount HTTP ${tokenResp.status}`);
     const token = tokenResp.body.replace(/^﻿/, "").trim();
 
-    // Step 2 — Login with base64-encoded password (NOT SHA256)
+    // Step 2 — Login with base64-encoded password (NOT SHA256).
+    // Do NOT use URLSearchParams here — it encodes = → %3D, + → %2B, / → %2F,
+    // and Huawei's CGI decoder doesn't handle those percent-sequences in the
+    // PassWord field, so the base64 string becomes invalid on the router side.
     const passB64 = Buffer.from(this.config.password, "utf8").toString("base64");
-    const loginBody = new URLSearchParams({
-      UserName: this.config.user,
-      PassWord: passB64,
-      Language: "english",
-      "x.X_HW_Token": token,
-    }).toString();
+    const loginBody = `UserName=${encodeURIComponent(this.config.user)}&PassWord=${passB64}&Language=english&x.X_HW_Token=${token}`;
 
     const loginResp = await httpRequest(`${base}/login.cgi`, {
       method: "POST",
