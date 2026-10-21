@@ -1,4 +1,5 @@
 import { appConfig } from "@/lib/config";
+import { HuaweiWebAdapter } from "./huawei";
 import { LanDiscoveryNetwork } from "./lan-discovery";
 import { MikrotikNetwork } from "./mikrotik";
 import { SimulatedNetwork } from "./simulator";
@@ -39,6 +40,8 @@ function createNetworkAdapter(): NetworkAdapter {
         reverseDns: appConfig.lan.reverseDns,
         upnp: appConfig.lan.upnp,
       });
+    case "huawei":
+      return new HuaweiWebAdapter(appConfig.huawei);
     default:
       return new SimulatedNetwork({ deviceCount: appConfig.simDeviceCount });
   }

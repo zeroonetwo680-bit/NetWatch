@@ -43,6 +43,7 @@ export function SettingsView() {
       <SystemStatusCard />
       {isAdmin ? <PollerSettings /> : null}
       {isAdmin ? <MikrotikSettings /> : null}
+      {isAdmin ? <HuaweiSettings /> : null}
       <ChangePasswordCard />
     </PageContainer>
   );
@@ -73,7 +74,9 @@ function SystemStatusCard() {
                 ? "محاكاة"
                 : data?.networkMode === "lan"
                   ? "اكتشاف الشبكة (LAN)"
-                  : "MikroTik"}
+                  : data?.networkMode === "huawei"
+                    ? "هواوي (Web API)"
+                    : "MikroTik"}
             </Badge>
           )}
         </Row>
@@ -123,6 +126,17 @@ function SystemStatusCard() {
             <AlertTitle>وضع اكتشاف الشبكة المحلية (LAN Discovery)</AlertTitle>
             <AlertDescription>
               يتم اكتشاف الأجهزة المتصلة الحقيقية عبر جدول ARP وPing. راوترات المنازل العادية لا تدعم إحصاءات استهلاك كل جهاز أو تحديد السرعة والحظر برمجياً — هذه المزايا تتطلب راوتر MikroTik.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      ) : null}
+      {data?.networkMode === "huawei" ? (
+        <CardContent>
+          <Alert className="border-info/40 bg-info/10">
+            <Info className="size-4 text-info" aria-hidden />
+            <AlertTitle>وضع هواوي (Web API)</AlertTitle>
+            <AlertDescription>
+              يتحكم NetWatch في الراوتر عبر واجهة الويب TR-069 CGI — الحظر والإحصاءات الفورية متاحة، لكن تحديد السرعة لكل جهاز غير مدعوم في هذا الموديل.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -409,6 +423,120 @@ function MikrotikForm({
             <Mono>/ip service set api disabled=no port=8728</Mono> وإنشاء مستخدم
             بصلاحيات <Mono>read,write,test,api</Mono>.
           </p>
+    </form>
+  );
+}
+
+function HuaweiSettings() {
+  const { data, isLoading } = useSettings();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Router className="size-4" aria-hidden />
+          إعدادات الراوتر (هواوي)
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading || !data ? (
+          <Skeleton className="h-32 w-full" />
+        ) : (
+          <HuaweiForm
+            key={`${data.huawei.host}-${data.huawei.user}`}
+            host={data.huawei.host}
+            user={data.huawei.user}
+            hasPassword={data.huawei.hasPassword}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function HuaweiForm({
+  host: initialHost,
+  user: initialUser,
+  hasPassword,
+}: {
+  host: string;
+  user: string;
+  hasPassword: boolean;
+}) {
+  const update = useUpdateSettings();
+  const [host, setHost] = useState(initialHost);
+  const [user, setUser] = useState(initialUser);
+  const [password, setPassword] = useState("");
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        update.mutate(
+          {
+            huawei: { host, user, ...(password ? { password } : {}) },
+          },
+          {
+            onSuccess: () => {
+              toast.success("تم حفظ إعدادات راوتر هواوي");
+              setPassword("");
+            },
+            onError: (error) =>
+              toast.error(isApiError(error) ? error.title : "تعذّر حفظ الإعدادات"),
+          },
+        );
+      }}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="hw-host">عنوان الراوتر</Label>
+          <Input
+            id="hw-host"
+            dir="ltr"
+            value={host}
+            onChange={(e) => setHost(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="hw-user">اسم المستخدم</Label>
+          <Input
+            id="hw-user"
+            dir="ltr"
+            value={user}
+            onChange={(e) => setUser(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="hw-password">كلمة المرور</Label>
+          <Input
+            id="hw-password"
+            type="password"
+            dir="ltr"
+            autoComplete="new-password"
+            placeholder={hasPassword ? "اتركها فارغة للإبقاء عليها" : ""}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            كلمة المرور تُكتب فقط ولا تُعرض ولا تُخزَّن في قاعدة البيانات.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button type="submit" disabled={update.isPending}>
+          {update.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+          حفظ
+        </Button>
+      </div>
+      <Separator />
+      <p className="text-xs text-muted-foreground">
+        يتصل NetWatch بالراوتر عبر واجهة الويب HTTPS على المنفذ 443.
+        تأكد من صحة بيانات الدخول وأن الراوتر على نفس الشبكة.
+        فعّل <Mono>NETWORK_MODE=huawei</Mono> في ملف env لاستخدام هذا الوضع.
+      </p>
     </form>
   );
 }

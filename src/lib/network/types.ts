@@ -66,7 +66,7 @@ export type AdapterStatus = {
   deviceCount: number;
 };
 
-export type NetworkMode = "simulated" | "mikrotik" | "lan";
+export type NetworkMode = "simulated" | "mikrotik" | "lan" | "huawei";
 
 export type MikrotikConnectionConfig = {
   host: string;

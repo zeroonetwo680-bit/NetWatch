@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const networkModeSchema = z.enum(["simulated", "mikrotik", "lan"]);
+export const networkModeSchema = z.enum(["simulated", "mikrotik", "lan", "huawei"]);
 
 export const adapterCapabilitiesSchema = z.object({
   perDeviceTraffic: z.boolean(),
@@ -34,7 +34,11 @@ export const settingsSchema = z.object({
     host: z.string(),
     port: z.number().int(),
     user: z.string(),
-    // Never the password — write-only.
+    hasPassword: z.boolean(),
+  }),
+  huawei: z.object({
+    host: z.string(),
+    user: z.string(),
     hasPassword: z.boolean(),
   }),
 });
@@ -47,6 +51,13 @@ export const updateSettingsSchema = z
       .object({
         host: z.string().min(1).optional(),
         port: z.number().int().positive().optional(),
+        user: z.string().min(1).optional(),
+        password: z.string().optional(),
+      })
+      .optional(),
+    huawei: z
+      .object({
+        host: z.string().min(1).optional(),
         user: z.string().min(1).optional(),
         password: z.string().optional(),
       })

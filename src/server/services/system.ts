@@ -11,12 +11,14 @@ import type {
   NetworkMode,
   TotalThroughput,
 } from "@/lib/network/types";
+import type { HuaweiConnectionConfig } from "@/lib/network/huawei";
 import { ApiError } from "../errors";
 
 export type RuntimeSettings = {
   pollIntervalMs: number;
   sampleRetentionDays: number;
   mikrotik: MikrotikConnectionConfig & { hasPassword: boolean };
+  huawei: HuaweiConnectionConfig & { hasPassword: boolean };
 };
 
 const globalForRuntime = globalThis as unknown as {
@@ -28,33 +30,16 @@ export const LAST_ERROR_KEY = "last_error";
 export const LAST_POLL_KEY = "last_poll_at";
 
 function persist(next: RuntimeSettings): void {
+  const value = JSON.stringify({
+    pollIntervalMs: next.pollIntervalMs,
+    sampleRetentionDays: next.sampleRetentionDays,
+    mikrotik: { host: next.mikrotik.host, port: next.mikrotik.port, user: next.mikrotik.user },
+    huawei: { host: next.huawei.host, user: next.huawei.user },
+  });
   getDb()
     .insert(settings)
-    .values({
-      key: SETTINGS_KEY,
-      value: JSON.stringify({
-        pollIntervalMs: next.pollIntervalMs,
-        sampleRetentionDays: next.sampleRetentionDays,
-        mikrotik: {
-          host: next.mikrotik.host,
-          port: next.mikrotik.port,
-          user: next.mikrotik.user,
-        },
-      }),
-      updatedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: settings.key,
-      set: { value: JSON.stringify({
-        pollIntervalMs: next.pollIntervalMs,
-        sampleRetentionDays: next.sampleRetentionDays,
-        mikrotik: {
-          host: next.mikrotik.host,
-          port: next.mikrotik.port,
-          user: next.mikrotik.user,
-        },
-      }), updatedAt: new Date() },
-    })
+    .values({ key: SETTINGS_KEY, value, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } })
     .run();
 }
 
@@ -77,9 +62,15 @@ export function getRuntimeSettings(): RuntimeSettings {
       host: appConfig.mikrotik.host,
       port: appConfig.mikrotik.port,
       user: appConfig.mikrotik.user,
-      // Password comes from env only — never persisted to the DB.
+      // Passwords come from env only — never persisted to the DB.
       password: appConfig.mikrotik.password,
       hasPassword: appConfig.mikrotik.password.length > 0,
+    },
+    huawei: {
+      host: appConfig.huawei.host,
+      user: appConfig.huawei.user,
+      password: appConfig.huawei.password,
+      hasPassword: appConfig.huawei.password.length > 0,
     },
   };
 
@@ -87,17 +78,23 @@ export function getRuntimeSettings(): RuntimeSettings {
     try {
       const parsed = JSON.parse(row.value) as Partial<RuntimeSettings> & {
         mikrotik?: Partial<MikrotikConnectionConfig>;
+        huawei?: Partial<HuaweiConnectionConfig>;
       };
       next = {
         pollIntervalMs: parsed.pollIntervalMs ?? next.pollIntervalMs,
-        sampleRetentionDays:
-          parsed.sampleRetentionDays ?? next.sampleRetentionDays,
+        sampleRetentionDays: parsed.sampleRetentionDays ?? next.sampleRetentionDays,
         mikrotik: {
           host: parsed.mikrotik?.host ?? next.mikrotik.host,
           port: parsed.mikrotik?.port ?? next.mikrotik.port,
           user: parsed.mikrotik?.user ?? next.mikrotik.user,
           password: next.mikrotik.password,
           hasPassword: next.mikrotik.hasPassword,
+        },
+        huawei: {
+          host: parsed.huawei?.host ?? next.huawei.host,
+          user: parsed.huawei?.user ?? next.huawei.user,
+          password: next.huawei.password,
+          hasPassword: next.huawei.hasPassword,
         },
       };
     } catch {
@@ -112,33 +109,38 @@ export function getRuntimeSettings(): RuntimeSettings {
 export type SettingsPatch = {
   pollIntervalMs?: number;
   sampleRetentionDays?: number;
-  mikrotik?: {
-    host?: string;
-    port?: number;
-    user?: string;
-    password?: string;
-  };
+  mikrotik?: { host?: string; port?: number; user?: string; password?: string };
+  huawei?: { host?: string; user?: string; password?: string };
 };
 
 export function updateRuntimeSettings(patch: SettingsPatch): RuntimeSettings {
   const current = getRuntimeSettings();
   const next: RuntimeSettings = {
     pollIntervalMs: patch.pollIntervalMs ?? current.pollIntervalMs,
-    sampleRetentionDays:
-      patch.sampleRetentionDays ?? current.sampleRetentionDays,
+    sampleRetentionDays: patch.sampleRetentionDays ?? current.sampleRetentionDays,
     mikrotik: {
       host: patch.mikrotik?.host ?? current.mikrotik.host,
       port: patch.mikrotik?.port ?? current.mikrotik.port,
       user: patch.mikrotik?.user ?? current.mikrotik.user,
       password: patch.mikrotik?.password ?? current.mikrotik.password,
-      hasPassword:
-        (patch.mikrotik?.password ?? "").length > 0 || current.mikrotik.hasPassword,
+      hasPassword: (patch.mikrotik?.password ?? "").length > 0 || current.mikrotik.hasPassword,
+    },
+    huawei: {
+      host: patch.huawei?.host ?? current.huawei.host,
+      user: patch.huawei?.user ?? current.huawei.user,
+      password: patch.huawei?.password ?? current.huawei.password,
+      hasPassword: (patch.huawei?.password ?? "").length > 0 || current.huawei.hasPassword,
     },
   };
 
   globalForRuntime.netwatchRuntimeSettings = next;
   persist(next);
   getNetworkAdapter().setConnectionConfig(next.mikrotik);
+  // Update Huawei adapter config if active
+  const adapter = getNetworkAdapter();
+  if (adapter.mode === "huawei") {
+    (adapter as { updateConfig: (c: HuaweiConnectionConfig) => void }).updateConfig(next.huawei);
+  }
   return next;
 }
 

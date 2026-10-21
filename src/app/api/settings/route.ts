@@ -23,6 +23,11 @@ function toDto() {
       user: runtime.mikrotik.user,
       hasPassword: runtime.mikrotik.hasPassword,
     },
+    huawei: {
+      host: runtime.huawei.host,
+      user: runtime.huawei.user,
+      hasPassword: runtime.huawei.hasPassword,
+    },
   });
 }
 
@@ -44,12 +49,10 @@ export const PATCH = handle(async (request: Request) => {
     pollIntervalMs: patch.pollIntervalMs,
     sampleRetentionDays: patch.sampleRetentionDays,
     mikrotik: patch.mikrotik
-      ? {
-          host: patch.mikrotik.host,
-          port: patch.mikrotik.port,
-          user: patch.mikrotik.user,
-          password: patch.mikrotik.password,
-        }
+      ? { host: patch.mikrotik.host, port: patch.mikrotik.port, user: patch.mikrotik.user, password: patch.mikrotik.password }
+      : undefined,
+    huawei: patch.huawei
+      ? { host: patch.huawei.host, user: patch.huawei.user, password: patch.huawei.password }
       : undefined,
   });
   return ok(toDto());

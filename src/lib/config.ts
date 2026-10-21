@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-export type NetworkMode = "simulated" | "mikrotik" | "lan";
+export type NetworkMode = "simulated" | "mikrotik" | "lan" | "huawei";
 
 import { FALLBACK_SESSION_SECRET, getSessionSecret } from "./session-secret";
 
 const envSchema = z.object({
-  NETWORK_MODE: z.enum(["simulated", "mikrotik", "lan"]).catch("simulated"),
+  NETWORK_MODE: z.enum(["simulated", "mikrotik", "lan", "huawei"]).catch("simulated"),
   MIKROTIK_HOST: z.string().min(1).catch("192.168.88.1"),
   MIKROTIK_PORT: z.coerce.number().int().positive().catch(8728),
   MIKROTIK_USER: z.string().min(1).catch("admin"),
@@ -29,6 +29,9 @@ const envSchema = z.object({
     .catch(120_000),
   LAN_REVERSE_DNS: z.string().catch("true"),
   LAN_UPNP: z.string().catch("true"),
+  HUAWEI_HOST: z.string().min(1).catch("192.168.1.1"),
+  HUAWEI_USER: z.string().min(1).catch("admin"),
+  HUAWEI_PASSWORD: z.string().catch(""),
   // DNS Controller (local DNS sinkhole / device controller)
   DNS_ENABLED: z.string().catch("true"),
   DNS_PORT: z.coerce.number().int().positive().catch(53),
@@ -92,6 +95,11 @@ export const appConfig = {
     port: parsed.MIKROTIK_PORT,
     user: parsed.MIKROTIK_USER,
     password: parsed.MIKROTIK_PASSWORD,
+  },
+  huawei: {
+    host: parsed.HUAWEI_HOST,
+    user: parsed.HUAWEI_USER,
+    password: parsed.HUAWEI_PASSWORD,
   },
 } as const;
 
